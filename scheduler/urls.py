@@ -16,7 +16,7 @@ Including another URLconf
 from django.conf.urls import url
 from django.contrib import admin
 
-from views import views_static_serve
+from scheduler.views import views_static_serve
 from main.views import *
 
 urlpatterns = [

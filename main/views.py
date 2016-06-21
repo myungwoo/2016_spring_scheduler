@@ -4,7 +4,7 @@ from django.shortcuts import render_to_response
 from django.http import *
 
 from django.contrib.auth.models import User
-from models import Member, Schedule
+from main.models import Member, Schedule
 
 
 def parse_time(stime):
