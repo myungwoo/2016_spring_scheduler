@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block member-active %} class="active"{% endblock %}
+{% block content %}
+<h1 class="page-header">
+	구성원
+	<button class="btn btn-lg btn-info pull-right" data-toggle="modal" data-target="#addModal">
+		추가
+	</button>
+</h1>
+<table class="table table-striped">
+	<thead>
+		<tr>
+			<th>#</th>
+			<th>이름</th>
+			<th>전화번호</th>
+			<th>작업</th>
+		</tr>
+	</thead>
+	<tbody>
+		{% for member in members %}
+		<tr>
+			<td>{{ forloop.counter }}</td>
+			<td>{{ member.name }}</td>
+			<td>{{ member.phone_number }}</td>
+			<td><a href="javascript:delete_member({{ member.id }}, '{{ member.name }}');">삭제</a></td>
+		</tr>
+		{% endfor %}
+	</tbody>
+</table>
+<div id="deleteModal" class="modal fade" tabindex="-1" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+				<h3 class="modal-title"><span id="memberName"></span> 삭제</h3>
+			</div>
+			<div class="modal-body">
+				<p>정말 삭제하시겠습니까?</p>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">닫기</button>
+				<button type="button" class="btn btn-danger" role="delete">삭제</button>
+			</div>
+		</div><!-- /.modal-content -->
+	</div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+<div id="addModal" class="modal fade" tabindex="-1" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+				<h3 class="modal-title">구성원 추가</h3>
+			</div>
+			<div class="modal-body">
+				<div class="form-group">
+					<label for="inputName">이름</label>
+					<input type="text" class="form-control" id="inputName" placeholder="이름" autocomplete="off">
+				</div>
+				<div class="form-group">
+					<label for="inputPhoneNumber">전화번호</label>
+					<input type="text" class="form-control" id="inputPhoneNumber" placeholder="전화번호" autocomplete="off">
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">닫기</button>
+				<button type="button" class="btn btn-info" role="add">추가</button>
+			</div>
+		</div><!-- /.modal-content -->
+	</div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+{% endblock %}
+
+{% block script %}
+<script type="text/javascript">
+var csrf_token = '{{ csrf_token }}';
+function delete_member(id, name){
+	$('#deleteModal #memberName').html(name);
+	$('#deleteModal button[role="delete"]').off('click').click(function(){
+		delete_member2(id);
+	});
+	$('#deleteModal').modal('show');
+}
+function delete_member2(id){
+	$.ajax({
+		type: 'post',
+		url: '/',
+		data: {
+			work: 'delete',
+			id: id,
+			csrfmiddlewaretoken: csrf_token
+		},
+		success: function(data){
+			if (data == 'success') location.reload();
+		}
+	});
+}
+$('button[role="add"]').click(function(){
+	var name = $('#inputName').val();
+	var phone_number = $('#inputPhoneNumber').val();
+	if (name == ''){
+		alert('이름을 써주세요.');
+		return false;
+	}
+	if (phone_number == ''){
+		alert('전화번호를 써주세요.');
+		return false;
+	}
+	$.ajax({
+		type: 'post',
+		url: '/',
+		data: {
+			work: 'add',
+			name: name,
+			phone_number: phone_number,
+			csrfmiddlewaretoken: csrf_token
+		},
+		success: function(data){
+			if (data == 'success') location.reload();
+		}
+	});
+});
+</script>
+{% endblock %}

@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block meeting-active %} class="active"{% endblock %}
+
+{% block style %}
+	<link href="/static/css/bootstrap-datetimepicker.min.css" rel="stylesheet">
+	<style type="text/css">
+	#resultDiv {
+		display: none;
+	}
+
+	#loading {
+		text-align: center;
+	}
+	</style>
+<script type="text/javascript" src="http://openapi.map.naver.com/openapi/v2/maps.js?clientId=atEtiiFaA2aV1K7LdhcK"></script>
+
+{% endblock %}
+
+{% block content %}
+<h1 class="page-header">회의 잡기</h1>
+<div class="row">
+	<div class="col-md-12">
+		<div class="form-group">
+			<label for="inputMinTime">최소 시작 시간</label>
+			<div id="datetimepicker1" class="input-group">
+				<span class="input-group-addon">
+					<span class="glyphicon glyphicon-time"></span>
+				</span>
+				<input type="text" id="inputMinTime" class="form-control"></input>
+			</div>
+		</div>
+		<div class="form-group">
+			<label for="inputDuration">회의 시간</label>
+			<div id="datetimepicker2" class="input-group">
+				<span class="input-group-addon">
+					<span class="glyphicon glyphicon-time"></span>
+				</span>
+				<input type="text" id="inputDuration" class="form-control"></input>
+			</div>
+		</div>
+		<button type="button" class="btn btn-lg btn-primary" role="search">검색</button>
+		<button type="button" class="btn btn-lg btn-default" role="clear">결과 초기화</button>
+	</div>
+</div>
+<div id="resultDiv">
+	<h2 class="page-header">검색 결과</h2>
+	<div class="row">
+		<div id="loading">
+			<img src="/static/img/loading.gif" width="200px"></img>
+		</div>
+		<div id="resultPage">
+		</div>
+	</div>
+</div>
+<div id="placeModal" class="modal fade" tabindex="-1" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+				<h3 class="modal-title">장소 자세히 보기</h3>
+			</div>
+			<div class="modal-body">
+				<div id="testMap2" style="border: 1px solid #000;"></div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">닫기</button>
+			</div>
+		</div><!-- /.modal-content -->
+	</div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+{% endblock %}
+
+{% block script %}
+<script type="text/javascript" src="/static/js/moment.js"></script>
+<script type="text/javascript" src="/static/js/bootstrap-datetimepicker.min.js"></script>
+<script type="text/javascript">
+var csrf_token = '{{ csrf_token }}';
+$('#datetimepicker1').datetimepicker({
+	format: 'HH:mm:ss'
+});
+$('#datetimepicker2').datetimepicker({
+	format: 'HH:mm:ss',
+	useCurrent: false
+});
+$('button[role="clear"]').click(function(){
+	$('#loading').show();
+	$('#resultPage').html('');
+	$('#resultDiv').hide();
+});
+
+$('button[role="search"]').click(function(){
+	var min_time = $('#inputMinTime').val();
+	var duration = $('#inputDuration').val();
+
+	if (min_time == ''){
+		alert('최소 시작 시간을 입력하세요.');
+		return false;
+	}
+	if (duration == ''){
+		alert('회의 시간을 입력하세요.');
+		return false;
+	}
+
+	duration = parseInt(duration.split(':')[0]) * 3600 + parseInt(duration.split(':')[1]) * 60 + parseInt(duration.split(':')[2]);
+
+	if (duration == 0){
+		alert('회의 시간이 0일 수 없습니다.');
+		return false;
+	}
+
+	$('#loading').show();
+	$('#resultPage').html('');
+	$('#resultDiv').show();
+
+	$.ajax({
+		type: 'post',
+		url: '/meeting/',
+		data: {
+			min_time: min_time,
+			duration: duration,
+			csrfmiddlewaretoken: csrf_token
+		},
+		success: function(data){
+			var html = '<table class="table table-striped">';
+			html += '<thead><tr><th>요일</th><th>회의 시작 시간</th><th>결석 인원</th><th>장소</th></tr></thead><tbody>';
+			day_display = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
+			for (var i=0;i<7;i++){
+				var now = data.optimal[i];
+				html += '<tr>';
+				html += '<td>' + day_display[i] + '</td>';
+				if (now.found){
+					absent_str = '';
+					for (var j=0;j<now.absent.length;j++){
+						if (j > 0) absent_str += ', ';
+						absent_str += now.absent[j].name + '(' + now.absent[j].phone_number + ')';
+					}
+					if (absent_str == '') absent_str = '없음';
+					html += '<td>' + now.start_time + '</td>';
+					html += '<td><a href="javascript:void(0);" data-toggle="tooltip" data-placement="top" title="' + absent_str + '">' + now.absent.length + '</a></td>';
+					html += '<td><a href="javascript:show_place(\'' + now.place + '\');">자세히</a></td>';
+				}else{
+					html += '<td colspan="3">결과를 찾지 못했습니다.</td>';
+				}
+				html += '</tr>';
+			}
+			html += '</tbody></table>';
+			$('#loading').hide();
+			$('#resultPage').html(html);
+			$('[data-toggle="tooltip"]').tooltip();
+		}
+	});
+});
+
+var oMap2, oMarker;
+$(function(){
+	var w2 = $('#placeModal .modal-body').width(), h = 300;
+	var oPoint = new nhn.api.map.LatLng(37.5899103, 127.0318122);
+	nhn.api.map.setDefaultPoint('LatLng');
+	oMap2 = new nhn.api.map.Map(document.getElementById('testMap2'), {
+		point : oPoint,
+		zoom : 10,
+		enableWheelZoom : false, // 마우스 휠 동작으로 지도를 확대/축소할지 여부
+		enableDragPan : false, // 마우스로 끌어서 지도를 이동할지 여부
+		enableDblClickZoom : true, // 더블클릭으로 지도를 확대할지 여부
+		mapMode : 0, // 지도 모드(0: 일반 지도, 1: 겹침 지도, 2: 위성 지도)
+		activateTrafficMap : false, // 실시간 교통 활성화 여부
+		activateBicycleMap : false, // 자전거 지도 활성화 여부
+		minMaxLevel : [1, 14], // 지도의 최소/최대 축척 레벨
+		size : new nhn.api.map.Size(w2, h), // 지도의 크기
+		detectCoveredMarker : false // 겹쳐 있는 마커를 클릭했을 때 겹친 마커 목록 표시 여부
+	});
+	var resize_map = function(){
+		w2 = $('#placeModal .modal-body').width()
+		oMap2.setSize(new nhn.api.map.Size(w2, h));
+	};
+	$(window).resize(resize_map);
+	$('#placeModal').on('shown.bs.modal', resize_map);
+	var oSlider2 = new nhn.api.map.ZoomControl();
+	oMap2.addControl(oSlider2);
+	oSlider2.setPosition({
+		top : 10,
+		left : 10
+	});
+	var oSize = new nhn.api.map.Size(28, 37);
+	var oOffset = new nhn.api.map.Size(14, 37);
+	var oIcon = new nhn.api.map.Icon('http://static.naver.com/maps2/icons/pin_spot2.png', oSize, oOffset);
+	
+	oMarker = new nhn.api.map.Marker(oIcon, { title : '장소' });
+	oMap2.addOverlay(oMarker);
+});
+
+function show_place(place){
+	var x = parseFloat(place.split(',')[1]);
+	var y = parseFloat(place.split(',')[0]);
+	var oPoint = new nhn.api.map.LatLng(x, y);
+	oMarker.setPoint(oPoint);
+	oMap2.setCenter(oPoint);
+	$('#placeModal').modal('show');
+}
+</script>
+{% endblock %}

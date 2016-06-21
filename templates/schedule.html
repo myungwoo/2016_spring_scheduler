@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+
+{% block shcedule-active %} class="active"{% endblock %}
+
+{% block style %}
+	<link href="/static/css/bootstrap-datetimepicker.min.css" rel="stylesheet">
+<script type="text/javascript" src="http://openapi.map.naver.com/openapi/v2/maps.js?clientId=atEtiiFaA2aV1K7LdhcK"></script>
+
+{% endblock %}
+
+{% block content %}
+<h1 class="page-header">
+	스케줄
+	<button class="btn btn-lg btn-info pull-right" data-toggle="modal" data-target="#addModal">
+		추가
+	</button>
+</h1>
+<table class="table table-striped">
+	<thead>
+		<tr>
+			<th>#</th>
+			<th>이름</th>
+			<th>요일</th>
+			<th>시작 시간</th>
+			<th>종료 시간</th>
+			<th>장소</th>
+			<th>작업</th>
+		</tr>
+	</thead>
+	<tbody>
+		{% for schedule in schedules %}
+		<tr>
+			<td>{{ forloop.counter }}</td>
+			<td>{{ schedule.member.name }}</td>
+			<td>{{ schedule.get_week_day_display }}</td>
+			<td>{{ schedule.start_time_display }}</td>
+			<td>{{ schedule.end_time_display }}</td>
+			<td><a href="javascript:show_place('{{ schedule.place }}');">자세히</a></td>
+			<td><a href="javascript:delete_schedule({{ schedule.id }}, '{{ schedule.member.name }}', '{{ schedule.get_week_day_display }}');">삭제</a></td>
+		</tr>
+		{% endfor %}
+	</tbody>
+</table>
+<div id="addModal" class="modal fade" tabindex="-1" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+				<h3 class="modal-title">스케줄 추가</h3>
+			</div>
+			<div class="modal-body">
+				<div class="form-group">
+					<label for="inputMember">구성원</label>
+					<select id="inputMember" class="form-control">
+						{% for member in members %}
+						<option value="{{ member.id }}">{{ member }}</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div class="form-group">
+					<label for="inputDay">요일</label>
+					<select id="inputDay" class="form-control">
+						<option value="0">일요일</option>
+						<option value="1">월요일</option>
+						<option value="2">화요일</option>
+						<option value="3">수요일</option>
+						<option value="4">목요일</option>
+						<option value="5">금요일</option>
+						<option value="6">토요일</option>
+					</select>
+				</div>
+				<div class="form-group">
+					<label for="inputStartTime">시작 시간</label>
+					<div id="datetimepicker1" class="input-group">
+						<span class="input-group-addon">
+							<span class="glyphicon glyphicon-time"></span>
+						</span>
+						<input type="text" id="inputStartTime" class="form-control"></input>
+					</div>
+				</div>
+				<div class="form-group">
+					<label for="inputEndTime">종료 시간</label>
+					<div id="datetimepicker2" class="input-group">
+						<span class="input-group-addon">
+							<span class="glyphicon glyphicon-time"></span>
+						</span>
+						<input type="text" id="inputEndTime" class="form-control"></input>
+					</div>
+				</div>
+				<div class="form-group" id="form-group-map">
+					<label for="inputPlace">장소</label>
+					<div id="testMap" style="border: 1px solid #000;"></div>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">닫기</button>
+				<button type="button" class="btn btn-info" role="add">추가</button>
+			</div>
+		</div><!-- /.modal-content -->
+	</div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+<div id="deleteModal" class="modal fade" tabindex="-1" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+				<h3 class="modal-title"><span id="memberName"></span>의 <span id="scheduleDay"></span> 일정 삭제</h3>
+			</div>
+			<div class="modal-body">
+				<p>정말 삭제하시겠습니까?</p>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">닫기</button>
+				<button type="button" class="btn btn-danger" role="delete">삭제</button>
+			</div>
+		</div><!-- /.modal-content -->
+	</div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+<div id="placeModal" class="modal fade" tabindex="-1" role="dialog">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+				<h3 class="modal-title">장소 자세히 보기</h3>
+			</div>
+			<div class="modal-body">
+				<div id="testMap2" style="border: 1px solid #000;"></div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-default" data-dismiss="modal">닫기</button>
+			</div>
+		</div><!-- /.modal-content -->
+	</div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+{% endblock %}
+
+{% block script %}
+<script type="text/javascript" src="/static/js/moment.js"></script>
+<script type="text/javascript" src="/static/js/bootstrap-datetimepicker.min.js"></script>
+<script type="text/javascript">
+var csrf_token = '{{ csrf_token }}';
+var oMap, oMap2, oMarker;
+
+$(function(){
+	var w = $('#form-group-map').width(), h = 300;
+	var w2 = $('#placeModal .modal-body').width();
+	var oPoint = new nhn.api.map.LatLng(37.5899103, 127.0318122);
+	nhn.api.map.setDefaultPoint('LatLng');
+	oMap = new nhn.api.map.Map(document.getElementById('testMap'), {
+		point : oPoint,
+		zoom : 10,
+		enableWheelZoom : true, // 마우스 휠 동작으로 지도를 확대/축소할지 여부
+		enableDragPan : true, // 마우스로 끌어서 지도를 이동할지 여부
+		enableDblClickZoom : true, // 더블클릭으로 지도를 확대할지 여부
+		mapMode : 0, // 지도 모드(0: 일반 지도, 1: 겹침 지도, 2: 위성 지도)
+		activateTrafficMap : false, // 실시간 교통 활성화 여부
+		activateBicycleMap : false, // 자전거 지도 활성화 여부
+		minMaxLevel : [1, 14], // 지도의 최소/최대 축척 레벨
+		size : new nhn.api.map.Size(w, h), // 지도의 크기
+		detectCoveredMarker : false // 겹쳐 있는 마커를 클릭했을 때 겹친 마커 목록 표시 여부
+	});
+	oMap2 = new nhn.api.map.Map(document.getElementById('testMap2'), {
+		point : oPoint,
+		zoom : 10,
+		enableWheelZoom : false, // 마우스 휠 동작으로 지도를 확대/축소할지 여부
+		enableDragPan : false, // 마우스로 끌어서 지도를 이동할지 여부
+		enableDblClickZoom : true, // 더블클릭으로 지도를 확대할지 여부
+		mapMode : 0, // 지도 모드(0: 일반 지도, 1: 겹침 지도, 2: 위성 지도)
+		activateTrafficMap : false, // 실시간 교통 활성화 여부
+		activateBicycleMap : false, // 자전거 지도 활성화 여부
+		minMaxLevel : [1, 14], // 지도의 최소/최대 축척 레벨
+		size : new nhn.api.map.Size(w, h), // 지도의 크기
+		detectCoveredMarker : false // 겹쳐 있는 마커를 클릭했을 때 겹친 마커 목록 표시 여부
+	});
+	var resize_map = function(){
+		w = $('#form-group-map').width();
+		w2 = $('#placeModal .modal-body').width()
+		oMap.setSize(new nhn.api.map.Size(w, h));
+		oMap2.setSize(new nhn.api.map.Size(w2, h));
+	};
+	$(window).resize(resize_map);
+	$('#addModal').on('shown.bs.modal', resize_map);
+	$('#placeModal').on('shown.bs.modal', resize_map);
+	var oSlider = new nhn.api.map.ZoomControl();
+	oMap.addControl(oSlider);
+	oSlider.setPosition({
+		top : 10,
+		left : 10
+	});
+	var oSlider2 = new nhn.api.map.ZoomControl();
+	oMap2.addControl(oSlider2);
+	oSlider2.setPosition({
+		top : 10,
+		left : 10
+	});
+	var oSize = new nhn.api.map.Size(28, 37);
+	var oOffset = new nhn.api.map.Size(14, 37);
+	var oIcon = new nhn.api.map.Icon('http://static.naver.com/maps2/icons/pin_spot2.png', oSize, oOffset);
+	
+	oMarker = new nhn.api.map.Marker(oIcon, { title : '장소' });
+	oMap2.addOverlay(oMarker);
+
+	var testdefaultSpriteIcon = {
+		url:"http://static.naver.com/maps2/icons/pin_spot2.png", 
+		size:{width:28, height:37},
+		spriteSize:{width:28, height:37},
+		imgOrder:0, 
+		offset: {width: 14, height: 37}
+	};
+	// - 위에서 지정한 기본값을 이용해 실제로 SpriteIcon을 생성한다.
+	var testDupSpriteIcon_first = new nhn.api.map.SpriteIcon(testdefaultSpriteIcon.url, testdefaultSpriteIcon.size, testdefaultSpriteIcon.spriteSize, 0, testdefaultSpriteIcon.offset);
+
+	var DraggableMarker = new nhn.api.map.DraggableMarker(testDupSpriteIcon_first , {       
+			title : '장소',
+			point : oPoint,
+			zIndex : 1,
+			smallSrc :  testDupSpriteIcon_first});          
+	oMap.addOverlay(DraggableMarker);
+
+	$('#datetimepicker1').datetimepicker({
+		format: 'HH:mm:ss'
+	});
+	$('#datetimepicker2').datetimepicker({
+		format: 'HH:mm:ss'
+	});
+
+	$('button[role="add"]').click(function(){
+		var member_id = $('#inputMember').val();
+		var day = $('#inputDay').val();
+		var start_time = $('#inputStartTime').val();
+		var end_time = $('#inputEndTime').val();
+		var place = DraggableMarker.getPoint();
+
+		// data validation
+		if (start_time == ''){
+			alert('시작 시간을 정해주세요.');
+			return false;
+		}
+		if (end_time == ''){
+			alert('종료 시간을 정해주세요.');
+			return false;
+		}
+		var start_date = new Date(1970, 1, 1,
+			parseInt(start_time.split(':')[0]),
+			parseInt(start_time.split(':')[1]),
+			parseInt(start_time.split(':')[2]),
+			0
+		);
+		var end_date = new Date(1970, 1, 1,
+			parseInt(end_time.split(':')[0]),
+			parseInt(end_time.split(':')[1]),
+			parseInt(end_time.split(':')[2]),
+			0
+		);
+		if (start_date > end_date){
+			alert('시작 시간이 종료 시간보다 앞설 수 없습니다. 확인해주세요.');
+			return false;
+		}
+
+		$.ajax({
+			type: 'post',
+			url: '/schedule/',
+			data: {
+				work: 'add',
+				member_id: parseInt(member_id),
+				day: parseInt(day),
+				start_time: start_time,
+				end_time: end_time,
+				place: place.toString(),
+				csrfmiddlewaretoken: csrf_token
+			},
+			success: function(data){
+				if (data == 'success') location.reload();
+			}
+		});
+	});
+});
+
+function delete_schedule(id, name, day){
+	$('#deleteModal #memberName').html(name);
+	$('#deleteModal #scheduleDay').html(day);
+	$('#deleteModal button[role="delete"]').off('click').click(function(){
+		delete_schedule2(id);
+	});
+	$('#deleteModal').modal('show');
+}
+
+function delete_schedule2(id){
+	$.ajax({
+		type: 'post',
+		url: '/schedule/',
+		data: {
+			work: 'delete',
+			id: id,
+			csrfmiddlewaretoken: csrf_token
+		},
+		success: function(data){
+			if (data == 'success') location.reload();
+		}
+	});
+}
+
+function show_place(place){
+	var x = parseFloat(place.split(',')[1]);
+	var y = parseFloat(place.split(',')[0]);
+	var oPoint = new nhn.api.map.LatLng(x, y);
+	oMarker.setPoint(oPoint);
+	oMap2.setCenter(oPoint);
+	$('#placeModal').modal('show');
+}
+
+</script>
+{% endblock %}
