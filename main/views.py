@@ -81,17 +81,20 @@ def meeting_list(request):
 			if optimal_absent_count == -1:
 				optimal.append({'found': False})
 				continue
-			places = []
-			absent_id_set = set()
-			for member in optimal_absent_set:
-				absent_id_set.add(member.id)
-			for member in members:
-				if member.id in absent_id_set:
-					continue
-				places.append(member_place[member.id])
-			x = (max(map(lambda x: x[0], places)) + min(map(lambda x: x[0], places))) / 2
-			y = (max(map(lambda x: x[1], places)) + min(map(lambda x: x[1], places))) / 2
-			place = ','.join(['%.7f'%x, '%.7f'%y])
+			try:
+				places = []
+				absent_id_set = set()
+				for member in optimal_absent_set:
+					absent_id_set.add(member.id)
+				for member in members:
+					if member.id in absent_id_set:
+						continue
+					places.append(member_place[member.id])
+				x = (max(map(lambda x: x[0], places)) + min(map(lambda x: x[0], places))) / 2
+				y = (max(map(lambda x: x[1], places)) + min(map(lambda x: x[1], places))) / 2
+				place = ','.join(['%.7f'%x, '%.7f'%y])
+			except:
+				place = '127.0318122,37.5899103'
 			optimal_absent = []
 			for member in optimal_absent_set:
 				optimal_absent.append({'name': member.name, 'phone_number': member.phone_number})
