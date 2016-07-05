@@ -104,6 +104,3 @@ def meeting_list(request):
 		return JsonResponse({'optimal': optimal})
 
 	return render_to_response('meeting.html', RequestContext(request, {}))
-
-
-

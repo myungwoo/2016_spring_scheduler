@@ -13,7 +13,8 @@
 		text-align: center;
 	}
 	</style>
-<script type="text/javascript" src="http://openapi.map.naver.com/openapi/v2/maps.js?clientId=atEtiiFaA2aV1K7LdhcK"></script>
+<script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?clientId=E9COyUKUrCrFLmtXGiWz"></script>
+
 
 {% endblock %}
 
@@ -155,10 +156,10 @@ $('button[role="search"]').click(function(){
 
 var oMap2, oMarker;
 $(function(){
-	var w2 = $('#placeModal .modal-body').width(), h = 300;
-	var oPoint = new nhn.api.map.LatLng(37.5899103, 127.0318122);
-	nhn.api.map.setDefaultPoint('LatLng');
-	oMap2 = new nhn.api.map.Map(document.getElementById('testMap2'), {
+    var w2 = $('#placeModal .modal-body').width(), h = 300;
+	var oPoint = new naver.maps.LatLng(37.5899103, 127.0318122);
+	naver.maps.Point(37.5899103, 127.0318122);
+	oMap2 = new naver.maps.Map('testMap2', {
 		point : oPoint,
 		zoom : 10,
 		enableWheelZoom : false, // 마우스 휠 동작으로 지도를 확대/축소할지 여부
@@ -168,34 +169,34 @@ $(function(){
 		activateTrafficMap : false, // 실시간 교통 활성화 여부
 		activateBicycleMap : false, // 자전거 지도 활성화 여부
 		minMaxLevel : [1, 14], // 지도의 최소/최대 축척 레벨
-		size : new nhn.api.map.Size(w2, h), // 지도의 크기
-		detectCoveredMarker : false // 겹쳐 있는 마커를 클릭했을 때 겹친 마커 목록 표시 여부
+		size : new naver.maps.Size(w2, h), // 지도의 크기
+		detectCoveredMarker : false, // 겹쳐 있는 마커를 클릭했을 때 겹친 마커 목록 표시 여부
+        zoomControl: true,
+        zoomControlOptions: {
+            position: naver.maps.TOP_LEFT
+        },
 	});
 	var resize_map = function(){
 		w2 = $('#placeModal .modal-body').width()
-		oMap2.setSize(new nhn.api.map.Size(w2, h));
+		oMap2.setSize(new naver.maps.Size(w2, h));
 	};
 	$(window).resize(resize_map);
 	$('#placeModal').on('shown.bs.modal', resize_map);
-	var oSlider2 = new nhn.api.map.ZoomControl();
-	oMap2.addControl(oSlider2);
-	oSlider2.setPosition({
-		top : 10,
-		left : 10
-	});
-	var oSize = new nhn.api.map.Size(28, 37);
-	var oOffset = new nhn.api.map.Size(14, 37);
-	var oIcon = new nhn.api.map.Icon('http://static.naver.com/maps2/icons/pin_spot2.png', oSize, oOffset);
 	
-	oMarker = new nhn.api.map.Marker(oIcon, { title : '장소' });
-	oMap2.addOverlay(oMarker);
+	oMarker = new naver.maps.Marker({
+        position: new naver.maps.LatLng(37.5899103, 127.0318122),
+        map: oMap2,
+        icon: {
+            url: 'http://static.naver.com/maps2/icons/pin_spot2.png',
+        },
+    });
 });
 
 function show_place(place){
 	var x = parseFloat(place.split(',')[1]);
 	var y = parseFloat(place.split(',')[0]);
-	var oPoint = new nhn.api.map.LatLng(x, y);
-	oMarker.setPoint(oPoint);
+	var oPoint = new naver.maps.LatLng(x, y);
+	oMarker.setPosition(oPoint);
 	oMap2.setCenter(oPoint);
 	$('#placeModal').modal('show');
 }
