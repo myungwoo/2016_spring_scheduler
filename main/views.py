@@ -90,11 +90,16 @@ def meeting_list(request):
 					if member.id in absent_id_set:
 						continue
 					places.append(member_place[member.id])
+                                print 'try'
+                                print member_place
+                                print places
 				x = (max(map(lambda x: x[0], places)) + min(map(lambda x: x[0], places))) / 2
 				y = (max(map(lambda x: x[1], places)) + min(map(lambda x: x[1], places))) / 2
 				place = ','.join(['%.7f'%x, '%.7f'%y])
+                                print place
 			except:
 				place = '127.0318122,37.5899103'
+                                print 'except', place
 			optimal_absent = []
 			for member in optimal_absent_set:
 				optimal_absent.append({'name': member.name, 'phone_number': member.phone_number})
@@ -104,6 +109,3 @@ def meeting_list(request):
 		return JsonResponse({'optimal': optimal})
 
 	return render_to_response('meeting.html', RequestContext(request, {}))
-
-
-
